@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Macfil Attendance</title>
+<style>
+:root{--ink:#12263a;--amb:#f2a900;--bg:#f4f5f6;--ok:#1f7a4d;--bad:#b83227}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--ink);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+header button{width:auto;margin:0;padding:6px 10px;background:var(--amb);color:var(--ink)}
+main{max-width:520px;margin:auto;padding:16px}
+input,select,button{font:inherit;width:100%;padding:12px;margin:6px 0;border:1px solid #b9c0c7;border-radius:6px;background:#fff;color:var(--ink)}
+button{background:var(--ink);color:#fff;border:0;font-weight:600}
+button.a{background:var(--amb);color:var(--ink)}button.g{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.card{background:#fff;border-radius:8px;padding:14px;margin:10px 0}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+nav{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}nav button{margin:0;padding:8px;width:auto;flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:4px;border-bottom:1px solid #e2e5e8;text-align:left}
+.w{overflow-x:auto}#clk{font-size:38px;font-variant-numeric:tabular-nums}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--amb)}
+.hide{display:none}small{color:#51606e}
+</style></head><body>
+<header><b>Macfil Sdn Bhd</b><span><button id="lg" onclick="setLang()">BM</button></span></header>
+<main id="app"></main>
+<script>
+const API='https://script.google.com/macros/s/AKfycbz9Z8seJCQTD5XDrbCQmoaTT0TExLHGYTKNkKPCQ9oIKP7paMYdlzIB7L4ZcxuZhsQ/exec';
+const D=[['id','Staff ID','ID Staf'],['pin','PIN','PIN'],['login','Log in','Log masuk'],['out','Log out','Log keluar'],
+['IN','Clock in','Masuk kerja'],['OUT','Clock out','Keluar kerja'],['BRK_OUT','Start lunch/break','Mula rehat'],['BRK_IN','End lunch/break','Tamat rehat'],
+['site','Location','Lokasi'],['note','Job / site note','Nota kerja / tapak'],['selfie','Take selfie','Ambil swafoto'],['selfieOk','Selfie ready','Swafoto sedia'],
+['loc','Locating…','Mencari lokasi…'],['inF','Inside geo-fence','Dalam geo-pagar'],['outF','Outside geo-fence or weak GPS. Reason required.','Luar geo-pagar atau GPS lemah. Sebab diperlukan.'],
+['reason','Reason','Sebab'],['done','Recorded','Direkodkan'],['need','Selfie and location are required','Swafoto dan lokasi diperlukan'],
+['clock','Clock','Kehadiran'],['req','Request','Permohonan'],['inbox','Inbox','Peti masuk'],['rep','Report','Laporan'],['setup','Setup','Tetapan'],
+['LEAVE','Leave / MC','Cuti / MC'],['CORR','Forgot clock-out','Lupa clock-out'],['OT','Overtime (assign)','Lebih masa (tugaskan)'],
+['from','From','Dari'],['to','To','Hingga'],['date','Date','Tarikh'],['time','Clock-out time','Masa keluar'],['until','Overtime until','OT hingga'],['target','Staff ID to assign','ID staf ditugaskan'],
+['annual','Annual leave','Cuti tahunan'],['other','Other','Lain-lain'],['remark','Remark / reason','Catatan / sebab'],['save','Submit','Hantar'],
+['approve','Approve','Lulus'],['reject','Reject','Tolak'],['mine','My requests','Permohonan saya'],['todo','To review','Untuk semakan'],['none','Nothing pending','Tiada tertunggak'],
+['PENDING_HEAD','Waiting for head','Menunggu ketua'],['PENDING_HR','Waiting for HR','Menunggu HR'],['APPROVED','Approved','Diluluskan'],['REJECTED','Rejected','Ditolak'],['CONFIRMED','Confirmed','Disahkan'],['ASSIGNED','Assigned','Ditugaskan'],
+['load','Load','Papar'],['name','Name','Nama'],['days','Days','Hari'],['late','Late','Lewat'],['early','Early','Awal'],['brk','Break','Rehat'],['ot','OT','OT'],['otNA','OT not assigned','OT tiada tugasan'],['flag','Flags','Bendera'],['noout','No out','Tiada keluar'],
+['summary','Summary (minutes)','Ringkasan (minit)'],['detail','Daily detail','Butiran harian'],['locked','This month is locked','Bulan ini dikunci'],
+['sname','Site / job name','Nama tapak / kerja'],['rad','Radius (m)','Radius (m)'],['addHere','Add site at my location','Tambah tapak di lokasi saya'],['fixed','Fixed location (office/warehouse)','Lokasi tetap (pejabat/gudang)'],
+['hol','Public holiday','Cuti umum'],['staff','Staff','Staf'],['addstaff','Add staff','Tambah staf'],['resetpin','Reset PIN','Set semula PIN'],
+['month','Month close','Penutupan bulan'],['lock','Lock month','Kunci bulan'],['unlock','Unlock (reason)','Buka kunci (sebab)'],['sites','Sites','Tapak']];
+const T={en:{},ms:{}};D.forEach(([k,e,m])=>{T.en[k]=e;T.ms[k]=m});
+let L='en',S={},P={};const t=k=>T[L][k]||k,$=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today=()=>new Date().toLocaleDateString('sv');
+const ok=(e,m)=>e.innerHTML=`<span class=ok>${esc(m)}</span>`,bad=(e,m)=>e.innerHTML=`<span class=bad>${esc(m)}</span>`;
+const inp=(id,ph,ty='text',v='')=>`<input id=${id} type=${ty} placeholder="${esc(ph)}" value="${esc(v)}">`;
+function setLang(){L=L==='en'?'ms':'en';$('lg').textContent=L==='en'?'BM':'EN';document.documentElement.lang=L;S.name?home(S.tab):login()}
+async function post(a,x){const r=await fetch(API,{method:'POST',body:JSON.stringify({a,id:S.id,pin:S.pin,...x})});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+function login(){$('app').innerHTML=`<div class=card><label>${t('id')}<input id=i autocomplete=username></label><label>${t('pin')}<input id=p type=password inputmode=numeric></label><button onclick=doLogin()>${t('login')}</button><div id=m></div></div>`}
+async function doLogin(){S={id:$('i').value.trim(),pin:$('p').value};try{Object.assign(S,await post('login'));home()}catch(e){S={};bad($('m'),e.message)}}
+function home(tab='clock'){
+ S.tab=tab;const tabs=['clock','req','inbox','rep'];if(S.role!=='staff')tabs.push('setup');
+ $('app').innerHTML=`<nav>${tabs.map(k=>`<button class="${k==tab?'a':''}" onclick="home('${k}')">${t(k)}</button>`).join('')}<button class=g onclick="S={};login()">${t('out')}</button></nav><div id=v></div>`;
+ ({clock:clockView,req:reqView,inbox:inboxView,rep:repView,setup:setupView})[tab]();
+}
+function locate(cb){P={};navigator.geolocation.getCurrentPosition(p=>{P={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};cb()},e=>{P={err:e.message};cb()},{enableHighAccuracy:true,timeout:20000,maximumAge:0})}
+function hav(a,b,c,d){const r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,k=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return 2*6371000*Math.asin(Math.sqrt(k))}
+/* ---- Clock ---- */
+function clockView(){
+ $('v').innerHTML=`<div class=card><b>${esc(S.name)}</b> (${esc(S.dept)})<div id=clk></div>
+ <label>${t('site')}<select id=s onchange=upd()>${S.sites.map(s=>`<option>${esc(s.name)}</option>`).join('')}</select></label>
+ <div id=loc>${t('loc')}</div>
+ <input id=n placeholder="${esc(t('note'))}"><input id=r class=hide placeholder="${esc(t('reason'))}">
+ <input id=f type=file accept="image/*" capture=user class=hide onchange=pic(this)><button class=g onclick="$('f').click()" id=sb>${t('selfie')}</button>
+ <div class=grid>${['IN','OUT','BRK_OUT','BRK_IN'].map(k=>`<button class="${k=='IN'?'a':''}" onclick="go('${k}')">${t(k)}</button>`).join('')}</div><div id=m></div></div>`;
+ tick();locate(upd);
+}
+function tick(){if(!$('clk'))return;$('clk').textContent=new Date().toLocaleTimeString('en-GB');setTimeout(tick,1000)}
+function upd(){
+ const s=S.sites.find(x=>x.name===$('s').value),o=$('loc');if(!s||!o)return;
+ if(P.err||!P.lat){o.innerHTML=`<span class=bad>${esc(P.err||'GPS')}</span>`;$('r').classList.remove('hide');return}
+ const d=Math.round(hav(P.lat,P.lng,+s.lat,+s.lng)),g=d<=+s.radius&&P.acc<=100;
+ o.innerHTML=`<span class="${g?'ok':'bad'}">${g?t('inF'):t('outF')}</span> · ${d} m · ±${Math.round(P.acc)} m`;
+ $('r').classList.toggle('hide',g);
+}
+function pic(el){const f=el.files[0];if(!f)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=480/Math.max(im.width,im.height);c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);S.photo=c.toDataURL('image/jpeg',.6);$('sb').textContent=t('selfieOk')};im.src=URL.createObjectURL(f)}
+async function go(type){
+ const m=$('m');if(!S.photo||!P.lat){bad(m,t('need'));return}
+ try{const j=await post('clock',{type,site:$('s').value,note:$('n').value,reason:$('r').value,photo:S.photo,...P});ok(m,`${t('done')}: ${t(type)} (${j.dist} m)`);S.photo=null;$('sb').textContent=t('selfie');$('f').value=''}catch(e){bad(m,e.message);if(/Reason/.test(e.message))$('r').classList.remove('hide')}
+}
+/* ---- Requests ---- */
+function reqView(){
+ const ks=['LEAVE','CORR'];if(S.role!=='staff')ks.push('OT');
+ $('v').innerHTML=`<div class=card><select id=k onchange=reqF()>${ks.map(k=>`<option value=${k}>${t(k)}</option>`).join('')}</select><div id=f></div><button onclick=sendReq()>${t('save')}</button><div id=m></div></div>`;reqF();
+}
+function reqF(){const k=$('k').value;
+ $('f').innerHTML=(k=='OT'?inp('tg',t('target')):'')+`<label>${t(k=='LEAVE'?'from':'date')}<input id=d type=date value="${today()}"></label>`+
+ (k=='LEAVE'?`<label>${t('to')}<input id=e type=date value="${today()}"></label><select id=x><option value=Annual>${t('annual')}</option><option value=MC>MC</option><option value=Other>${t('other')}</option></select>`
+ :`<label>${t(k=='OT'?'until':'time')}<input id=x type=time value="${k=='OT'?'19:00':'17:00'}"></label>`)+inp('n',t('remark'));
+}
+async function sendReq(){const k=$('k').value;
+ try{await post('request',{kind:k,date:$('d').value,to:$('e')?$('e').value:'',detail:$('x').value+'|'+$('n').value,target:$('tg')?$('tg').value.trim():''});ok($('m'),t('done'))}catch(e){bad($('m'),e.message)}}
+/* ---- Inbox ---- */
+const age=x=>Math.floor((Date.now()-new Date(String(x.time).slice(0,10)))/864e5);
+async function inboxView(){
+ $('v').innerHTML='<div id=o></div>';
+ try{const j=await post('inbox');S.todo=j.todo;
+ const link=u=>String(u).startsWith('https://')?` <a href="${esc(u)}" target=_blank rel=noopener>📷</a>`:'';
+ const td=j.todo.map((x,i)=>`<div class=card><b>${esc(x.name)}</b> · ${esc(String(x.time).slice(0,16))} ${S.role=='hr'&&age(x)>=2?`<span class=bad>⚠ ${age(x)}d</span>`:''}<br>${x.k=='LOG'
+  ?`${esc(x.site)} · ${esc(x.dist)} m<br>${esc(x.reason)} ${esc(x.note)}${link(x.photo)}`
+  :`${esc(t(x.kind))}: ${esc(x.date)}${x.to!=x.date?' → '+esc(x.to):''} · ${esc(String(x.detail).replace('|',' · '))}<br><small>${t(x.status)}</small>`}
+  <div class=grid><button onclick="dec(${i},true)">${t('approve')}</button><button class=g onclick="dec(${i},false)">${t('reject')}</button></div></div>`).join('');
+ const mine=j.mine.map(r=>`<tr><td>${esc(t(r.kind))}</td><td>${esc(r.date)}${r.to!=r.date?' → '+esc(r.to):''}</td><td>${t(r.status)}</td></tr>`).join('');
+ $('o').innerHTML=(S.role!=='staff'?`<b>${t('todo')}</b>${td||`<div class=card>${t('none')}</div>`}`:'')+`<b>${t('mine')}</b><div class="card w"><table>${mine}</table></div>`}
+ catch(e){bad($('o'),e.message)}
+}
+async function dec(i,okk){const x=S.todo[i];try{await post('decide',x.k=='LOG'?{k:'LOG',row:x.row,ok:okk}:{k:'REQ',rid:x.rid,ok:okk});inboxView()}catch(e){alert(e.message)}}
+/* ---- Report ---- */
+function repView(){
+ $('v').innerHTML=`<div class=card><div class=grid><label>${t('from')}<input id=a type=date value="${today().slice(0,8)}01"></label><label>${t('to')}<input id=b type=date value="${today()}"></label></div><button onclick=loadRep()>${t('load')}</button><div id=o class=w></div></div>`;loadRep();
+}
+async function loadRep(){
+ try{const j=await post('report',{from:$('a').value,to:$('b').value});const c=v=>v||'';
+ $('o').innerHTML=(j.locked?`<p class=bad>🔒 ${t('locked')}</p>`:'')+`<b>${t('summary')}</b><table><tr>${['name','days','late','early','brk','ot','otNA','flag','noout'].map(k=>`<th>${t(k)}</th>`).join('')}</tr>${j.sum.map(s=>`<tr><td>${esc(s.name)}</td><td>${s.days}</td><td>${s.lateDays?s.lateDays+'× / '+s.late:''}</td><td>${c(s.early)}</td><td>${c(s.brk)}</td><td>${c(s.ot)}</td><td>${c(s.otNA)}</td><td class=bad>${c(s.flags)}</td><td class=bad>${c(s.noout)}</td></tr>`).join('')}</table>
+ <p><b>${t('detail')}</b></p><table><tr>${['date','name','IN','OUT','late','early','ot','otNA','brk','flag'].map(k=>`<th>${t(k)}</th>`).join('')}</tr>${j.days.map(d=>`<tr><td>${d.date.slice(5)}${d.off?'*':''}</td><td>${esc(d.name)}</td><td>${d.in}</td><td>${d.out}${d.corr?'†':''}</td><td>${c(d.late)}</td><td>${c(d.early)}</td><td>${c(d.ot)}</td><td>${c(d.otNA)}</td><td>${c(d.brk)}</td><td class=bad>${c(d.flags)}</td></tr>`).join('')}</table>
+ <small>* weekend/holiday · † corrected</small><p><b>${t('LEAVE')}</b></p><table>${j.leave.map(l=>`<tr><td>${esc(l.name)}</td><td>${esc(String(l.detail).split('|')[0])}</td><td>${esc(l.date)} → ${esc(l.to)}</td><td>${t(l.status)}</td></tr>`).join('')}</table>`}
+ catch(e){bad($('o'),e.message)}
+}
+/* ---- Setup ---- */
+function setupView(){
+ const hr=S.role==='hr';
+ $('v').innerHTML=`<div class=card><b>${t('sites')}</b>${inp('sn',t('sname'))}${inp('sr',t('rad'),'number','100')}${hr?`<label><input id=sf type=checkbox style="width:auto"> ${t('fixed')}</label>`:''}<div id=loc>${t('loc')}</div><button onclick=addSite()>${t('addHere')}</button><div id=m1></div></div>`+
+ (hr?`<div class=card><b>${t('hol')}</b><input id=hd type=date>${inp('hn',t('name'))}<button onclick=addHol()>${t('save')}</button><div id=m2></div></div>
+ <div class=card><b>${t('staff')}</b>${inp('si',t('id'))}${inp('sm',t('name'))}${inp('sd','Dept')}<select id=sl><option>staff</option><option>head</option><option>hr</option></select>${inp('sp',t('pin'),'password')}<div class=grid><button onclick="staffOp('add')">${t('addstaff')}</button><button class=g onclick="staffOp('reset')">${t('resetpin')}</button></div><div id=m3></div></div>
+ <div class=card><b>${t('month')}</b><input id=mm type=month value="${today().slice(0,7)}">${inp('mr',t('reason'))}<div class=grid><button onclick="mon('lock')">${t('lock')}</button><button class=g onclick="mon('unlock')">${t('unlock')}</button></div><div id=m4></div></div>`:'');
+ locate(()=>{const o=$('loc');if(o)o.textContent=P.lat?`${P.lat.toFixed(5)}, ${P.lng.toFixed(5)} (±${Math.round(P.acc)} m)`:(P.err||'GPS')});
+}
+async function addSite(){const m=$('m1');if(!P.lat||!$('sn').value){bad(m,t('need'));return}
+ try{await post('addSite',{name:$('sn').value,lat:P.lat,lng:P.lng,radius:$('sr').value,fixed:$('sf')?$('sf').checked:false});S.sites=(await post('login')).sites;ok(m,t('done'))}catch(e){bad(m,e.message)}}
+async function addHol(){try{await post('holiday',{date:$('hd').value,name:$('hn').value});ok($('m2'),t('done'))}catch(e){bad($('m2'),e.message)}}
+async function staffOp(op){try{await post('staff',{op,sid:$('si').value.trim(),sname:$('sm').value,sdept:$('sd').value,srole:$('sl').value,spin:$('sp').value});ok($('m3'),t('done'))}catch(e){bad($('m3'),e.message)}}
+async function mon(op){try{await post('month',{op,month:$('mm').value,reason:$('mr').value});ok($('m4'),t('done'))}catch(e){bad($('m4'),e.message)}}
+login();
+</script></body></html>
